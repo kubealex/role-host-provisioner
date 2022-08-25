@@ -1,0 +1,64 @@
+- name: Ensure required packages are in place
+  ansible.builtin.dnf:
+    name: "{{ host_packages }}"
+    state: latest # noqa package-latest
+
+- name: Ensure libvirtd is running
+  ansible.builtin.service:
+    name: libvirtd
+    state: started
+    enabled: true
+
+- name: Ensure libvirt can use root as user
+  ansible.builtin.replace:
+    path: /etc/libvirt/qemu.conf
+    regexp: "{{ item.regexp }}"
+    replace: "{{ item.line }}"
+    mode: 0755
+  loop:
+    - regexp: '#user = "root"'
+      line: 'user = "root"'
+    - regexp: '#group = "root"'
+      line: 'group = "root"'
+
+- name: Restart libvirtd service
+  ansible.builtin.service:
+    name: libvirtd
+    state: restarted
+
+- name: Create required folders
+  ansible.builtin.file:
+    state: directory
+    path: "{{ playbook_dir }}/terraform/kickstart/{{ item.instance }}"
+    recurse: true
+  loop: "{{ host_modules }}"
+
+- name: Create symbolic link to RHEL image
+  ansible.builtin.file:
+    src: "{{ playbook_dir }}/{{ item.version | default('rhel', true) }}.iso"
+    dest: "{{ playbook_dir }}/terraform/modules/{{ item.module }}/{{ item.instance }}.iso"
+    state: link
+  loop: "{{ host_modules }}"
+
+- name: Create a 1Mib file to store kickstart
+  community.general.filesize:
+    path: "{{ playbook_dir }}/terraform/modules/{{ item.module }}/{{ item.instance }}-oemdrv.img"
+    size: 1MiB
+  loop: "{{ host_modules }}"
+
+- name: Generate kickstart from template
+  ansible.builtin.template:
+    src: ks.cfg.j2
+    dest: "{{ playbook_dir }}/terraform/kickstart/{{ item.instance }}/ks.cfg"
+    mode: 0755
+  loop: "{{ host_modules }}"
+  vars:
+    hostname: "{{ item.hostname }}"
+
+- name: Rebuild Kickstart config
+  community.general.filesystem:
+    fstype: ext2
+    dev: "{{ playbook_dir }}/terraform/modules/{{ item.module }}/{{ item.instance }}-oemdrv.img"
+    opts: -d {{ playbook_dir }}/terraform/kickstart/{{ item.instance }} -L OEMDRV
+    force: true
+  loop: "{{ host_modules }}"
