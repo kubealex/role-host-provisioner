@@ -62,3 +62,30 @@
     opts: -d {{ playbook_dir }}/terraform/kickstart/{{ item.instance }} -L OEMDRV
     force: true
   loop: "{{ host_modules }}"
+
+- name: Provision all terraform resources
+  community.general.terraform:
+    project_path: "terraform/"
+    force_init: true
+    variables:
+      network_cidr: ' ["{{ host_network_cidr }}"]'
+    state: present
+
+- name: Add Local resolver for the domain
+  ansible.builtin.copy:
+    content: server=/{{ host_domain }}/{{ network_cidr | next_nth_usable(1) }}
+    dest: /etc/NetworkManager/dnsmasq.d/{{ host_domain }}.conf
+    mode: 0755
+
+- name: Restart NetworkManager to reload config
+  ansible.builtin.service:
+    name: NetworkManager
+    state: restarted
+
+- name: Ensure to clean known_hosts
+  ansible.builtin.known_hosts:
+    host: "{{ item.hostname }}.{{ host_domain }}"
+    path: ~/.ssh/known_hosts
+    state: absent
+  loop: "{{ host_modules }}"
+  become: false
