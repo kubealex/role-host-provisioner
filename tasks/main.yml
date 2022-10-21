@@ -67,7 +67,7 @@
   community.general.terraform:
     project_path: "terraform/"
     force_init: true
-    variables: "{{ tf_vars }}"
+    variables: "{{ host_tf_vars }}"
       # network_cidr: ' ["{{ host_network_cidr }}"]'
     state: present
 
