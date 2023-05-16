@@ -14,7 +14,7 @@
     path: /etc/libvirt/qemu.conf
     regexp: "{{ item.regexp }}"
     replace: "{{ item.line }}"
-    mode: 0755
+    mode: "0755"
   loop:
     - regexp: '#user = "root"'
       line: 'user = "root"'
@@ -50,7 +50,7 @@
   ansible.builtin.template:
     src: ks.cfg.j2
     dest: "{{ playbook_dir }}/terraform/kickstart/{{ item.instance }}/ks.cfg"
-    mode: 0755
+    mode: "0755"
   loop: "{{ host_modules }}"
   vars:
     hostname: "{{ item.hostname }}"
@@ -75,7 +75,7 @@
   ansible.builtin.copy:
     content: server=/{{ host_domain }}/{{ network_cidr | next_nth_usable(1) }}
     dest: /etc/NetworkManager/dnsmasq.d/{{ host_domain }}.conf
-    mode: 0755
+    mode: "0755"
 
 - name: Restart NetworkManager to reload config
   ansible.builtin.service:
